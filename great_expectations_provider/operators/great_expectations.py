@@ -18,6 +18,7 @@
 #
 
 import os
+import urllib.parse
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
@@ -328,7 +329,45 @@ class GreatExpectationsOperator(BaseOperator):
             else:
                 uri_string = f"awsathena+rest://@athena.{region}.amazonaws.com/?s3_staging_dir={s3_path}"
             # TODO: Add other AWS sources here as needed
-        # TODO: Add and Trino support (if possible)
+        elif conn_type == "trino":
+            # Based on the code from airflow.models.connection.get_uri
+            uri_string = "trino://"
+
+            authority_block = ""
+            if self.conn.login is not None:
+                authority_block += urllib.parse.quote(self.conn.login, safe="")
+
+            if self.conn.password is not None:
+                authority_block += ":" + urllib.parse.quote(self.conn.password, safe="")
+
+            if authority_block > "":
+                authority_block += "@"
+                uri_string += authority_block
+
+            host_block = urllib.parse.quote(self.conn.host, safe="")
+
+            if self.conn.port:
+                host_block += f":{self.conn.port}"
+
+            catalog = self.conn.extra_dejson.get("catalog", "hive")
+            host_block += f"/{urllib.parse.quote(catalog, safe='')}"
+
+            if self.conn.schema:
+                host_block += f"/{urllib.parse.quote(self.conn.schema, safe='')}"
+
+            uri_string += host_block
+
+            extra_args = self.conn.extra_dejson
+            if "catalog" in extra_args:
+                extra_args.pop("catalog")
+
+            if extra_args:
+                try:
+                    query: str | None = urllib.parse.urlencode(extra_args)
+                except TypeError:
+                    query = None
+                if query:
+                    uri_string += "?" + query
         else:
             raise ValueError(f"Conn type: {conn_type} is not supported.")
         return {"connection_string": uri_string}

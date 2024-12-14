@@ -968,6 +968,49 @@ def test_great_expectations_operator__make_connection_string_athena_with_db():
     assert operator.make_connection_configuration() == test_conn_conf
 
 
+def test_great_expectations_operator__make_connection_string_trino_basic_auth():
+    test_conn_conf = {"connection_string": "trino://user:pass@host:8080/hive"}
+    operator = GreatExpectationsOperator(
+        task_id="task_id",
+        data_context_config=in_memory_data_context_config,
+        data_asset_name="table_name",
+        conn_id="trino_default",
+        expectation_suite_name="suite",
+    )
+    operator.conn = Connection(
+        conn_id="trino_default",
+        conn_type="trino",
+        host="host",
+        port=8080,
+        login="user",
+        password="pass",
+    )
+    operator.conn_type = operator.conn.conn_type
+    assert operator.make_connection_configuration() == test_conn_conf
+
+
+def test_great_expectations_operator__make_connection_string_trino_with_catalog_schema_and_extra():
+    test_conn_conf = {"connection_string": "trino://user@host:8080/my_catalog/my_schema?externalAuthentication=True"}
+    operator = GreatExpectationsOperator(
+        task_id="task_id",
+        data_context_config=in_memory_data_context_config,
+        data_asset_name="table_name",
+        conn_id="trino_default",
+        expectation_suite_name="suite",
+    )
+    operator.conn = Connection(
+        conn_id="trino_default",
+        conn_type="trino",
+        host="host",
+        port=8080,
+        login="user",
+        schema="my_schema",
+        extra="""{"catalog": "my_catalog", "externalAuthentication": true}""",
+    )
+    operator.conn_type = operator.conn.conn_type
+    assert operator.make_connection_configuration() == test_conn_conf
+
+
 def test_great_expectations_operator__make_connection_string_athena_without_db():
     test_conn_conf = {
         "connection_string": "awsathena+rest://@athena.us-east-1.amazonaws.com/?s3_staging_dir=bucket/path/to/staging/dir"  # noqa
